@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using DishesAPI.DbContexts;
 using DishesAPI.Extensions;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,40 @@ builder.Services.AddDbContext<DishesDbContext>(opt =>
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 builder.Services.AddProblemDetails();
+
+builder.Services.AddAuthentication().AddJwtBearer();
+builder.Services.AddAuthorization();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("RequireAdminFromBelgium", policy =>
+        policy.RequireRole("Admin").RequireClaim("country", "Belgium"));
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("TokenAuthNZ",
+        new()
+        {
+            Name = "Authorization",
+            Description = "Basic Authorization header using the Bearer scheme.",
+            Type = SecuritySchemeType.Http,
+            Scheme = "Bearer",
+            In = ParameterLocation.Header
+        });
+    options.AddSecurityRequirement(new()
+    {
+        {
+            new()
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "TokenAuthNZ"
+                }
+            }, new List<string>()
+        }
+    });
+});
 
 // --------------------------------
 
@@ -35,6 +70,12 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();  // Not necessary, already include
+app.UseAuthorization();  // should be after  UseAuthentication
+
+app.UseSwagger();
+app.UseSwaggerUI();
 
 // --------------------------------
 
